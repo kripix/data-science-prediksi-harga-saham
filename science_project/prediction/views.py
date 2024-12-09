@@ -29,7 +29,7 @@ class PredictionView(View):
             return self.handle_upload(request)
         elif request.POST.get('action') == 'predict':
             return self.handle_prediction(request)
-        
+
         # If no valid action is found
         return render(request, 'prediction/index.html', {
             'regression_equation': None,
@@ -51,6 +51,22 @@ class PredictionView(View):
             with open(file_path, 'wb+') as destination:
                 for chunk in uploaded_file.chunks():
                     destination.write(chunk)
+
+            file_code = os.path.splitext(uploaded_file.name)[0]
+
+            company_file_path = 'prediction/static/data/DaftarSaham.csv'
+            df_companies = pd.read_csv(company_file_path)
+            company_info = df_companies[df_companies['Code'] == file_code]
+
+            if company_info.empty:
+                return render(request, 'prediction/index.html', {
+                    'upload_form': upload_form,
+                    'error': f"No matching company found for code: {file_code}",
+                    'file_uploaded': False,
+                })
+
+            # Ambil nama perusahaan dan informasi tambahan
+            company_name = company_info.iloc[0]['Name']
 
             # Read the CSV file
             df = pd.read_csv(file_path)
@@ -82,7 +98,8 @@ class PredictionView(View):
             # Plot the regression
             plt.figure(figsize=(10, 6))
             plt.scatter(df['timestamp'], y, color='blue', label='Data Points')
-            plt.plot(df['timestamp'], y_pred, color='red', label='Regression Line')
+            plt.plot(df['timestamp'], y_pred,
+                     color='red', label='Regression Line')
             plt.title('Linear Regression of Stock Prices')
             plt.xlabel('Date')
             plt.ylabel('Stock Price')
@@ -103,6 +120,7 @@ class PredictionView(View):
                 'min_date': df['timestamp'].min().strftime('%Y-%m-%d'),
                 'max_date': df['timestamp'].max().strftime('%Y-%m-%d'),
             }
+            request.session['company_name'] = company_name
 
             # Return the results
             return render(request, 'prediction/index.html', {
@@ -112,6 +130,7 @@ class PredictionView(View):
                 'error': None,
                 'plot_url': '/static/prediction/plot.png',
                 'file_uploaded': True,
+                'company_name': company_name,
             })
 
         # If the upload form is not valid
@@ -122,6 +141,7 @@ class PredictionView(View):
             'error': 'Upload form is not valid. Please check your form input and try again.',
             'plot_url': None,
             'file_uploaded': False,
+            'company_name': company_name,
         })
 
     def handle_prediction(self, request):
@@ -130,6 +150,7 @@ class PredictionView(View):
             file_path = request.session.get('file_path')
             regression_params = request.session.get('regression_params')
             data_range = request.session.get('data_range')
+            company_name = request.session.get('company_name')
 
             if not file_path or not regression_params:
                 return render(request, 'prediction/index.html', {
@@ -145,13 +166,23 @@ class PredictionView(View):
             prediction_date = request.POST.get('prediction_date')
             prediction_date = pd.to_datetime(prediction_date)
 
+            if prediction_date < pd.to_datetime('1900-01-01') or prediction_date > pd.to_datetime('2100-01-01'):
+                return render(request, 'prediction/index.html', {
+                    'error': 'Tanggal prediksi tidak valid. Pilih tanggal antara tahun 1900 hingga 2100.',
+                    'file_uploaded': True,
+                    'plot_url': '/static/prediction/plot.png',
+                })
+
             # Calculate days since epoch for prediction
-            days_since_epoch = (prediction_date - pd.to_datetime('1970-01-01')).days
+            days_since_epoch = (
+                prediction_date - pd.to_datetime('1970-01-01')).days
 
             # Calculate the predicted value
             slope = regression_params['slope']
             intercept = regression_params['intercept']
             predicted_price = slope * days_since_epoch + intercept
+
+            
 
             return render(request, 'prediction/index.html', {
                 'regression_equation': f"y = {slope:.4f}x + {intercept:.4f}",
@@ -160,8 +191,7 @@ class PredictionView(View):
                 'file_uploaded': True,
                 'prediction_date': prediction_date.strftime('%Y-%m-%d'),
                 'prediction_result': f"{predicted_price:.2f}",
-                'min_date': data_range.get('min_date'),
-                'max_date': data_range.get('max_date'),
+                'company_name': company_name,
             })
 
         except Exception as e:
