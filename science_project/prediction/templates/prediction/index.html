@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Price Prediction</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 font-sans">
+    <div class="max-w-4xl mx-auto mt-10 p-8 bg-white rounded-lg shadow-lg">
+        <h1 class="text-4xl font-semibold text-center text-gray-800 mb-8">Stock Price Prediction</h1>
+
+        <!-- File Upload Section -->
+        <div class="mb-10">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-6">1. Upload Stock Data</h2>
+            
+            <!-- Error Messages -->
+            <div id="errorMessage" style="display: none;">
+                {% if error %}
+                    <div class="bg-red-100 text-red-700 p-4 rounded mb-6">
+                        <strong>Error:</strong> {{ error }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- File Upload Form -->
+            <form method="POST" enctype="multipart/form-data" class="space-y-6" id="uploadForm">
+                {% csrf_token %}
+
+                <div class="flex flex-col space-y-4">
+                    <div>
+                        <label for="file" class="block text-lg font-medium text-gray-700">Upload CSV</label>
+                        <input type="file" name="file" id="file" class="mt-2 p-3 border border-gray-300 rounded w-full text-gray-800" required>
+                        <p class="text-sm text-gray-500 mt-2">Ensure the CSV contains "timestamp" and "close" columns.</p>
+                    </div>
+
+                    <div class="flex justify-between gap-4">
+                        <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition duration-300">Upload</button>
+                        <button type="button" onclick="resetForm()" class="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition duration-300">Reset</button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Upload Results Section -->
+            {% if file_uploaded %}
+                <div class="mt-8 space-y-6">
+                    <!-- Regression Equation -->
+                    {% if regression_equation %}
+                        <div>
+                            <h3 class="text-xl font-semibold text-gray-700">Regression Equation</h3>
+                            <p class="text-lg text-gray-800 mt-2">y = {{ regression_equation }}</p>
+                        </div>
+                    {% endif %}
+
+                    <!-- Correlation -->
+                    {% if correlation %}
+                        <div>
+                            <h3 class="text-xl font-semibold text-gray-700">Correlation</h3>
+                            <p class="text-lg text-gray-800 mt-2">Correlation Coefficient: {{ correlation }}</p>
+                        </div>
+                    {% endif %}
+
+                    <!-- Regression Plot -->
+                    {% if plot_url %}
+                        <div>
+                            <h3 class="text-xl font-semibold text-gray-700">Regression Plot</h3>
+                            <img src="{{ plot_url }}" alt="Regression Plot" class="mt-4 w-full rounded-lg shadow-lg">
+                        </div>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Prediction by Date Section -->
+        {% if file_uploaded %}
+            <div class="mt-10">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-6">2. Predict Stock Price</h2>
+                
+                <form method="POST" class="space-y-6" id="predictionForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="predict">
+
+                    <div class="flex flex-col space-y-4">
+                        <div>
+                            <label for="prediction_date" class="block text-lg font-medium text-gray-700">Select Prediction Date</label>
+                            <input type="date" name="prediction_date" id="prediction_date" 
+                                   class="mt-2 p-3 border border-gray-300 rounded w-full text-gray-800" 
+                                   required 
+                                   min="{{ min_date }}" 
+                                   max="{{ max_date }}">
+                        </div>
+
+                        <button type="submit" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition duration-300">
+                            Predict Stock Price
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Prediction Result -->
+                {% if prediction_result %}
+                    <div class="mt-6 bg-blue-50 p-6 rounded-lg">
+                        <h3 class="text-xl font-semibold text-gray-700">Prediction Result</h3>
+                        <p class="text-lg text-gray-800 mt-2">
+                            Predicted Stock Price for {{ prediction_date }}: 
+                            <span class="font-bold text-blue-600">{{ prediction_result }}</span>
+                        </p>
+                    </div>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+        function resetForm() {
+            // Reset the file upload form
+            document.getElementById("uploadForm").reset();
+
+            // Hide the upload results
+            const uploadResults = document.querySelectorAll('#regressionResult, #correlationResult, #plotResult');
+            uploadResults.forEach(el => {
+                if (el) el.style.display = 'none';
+            });
+
+            // Reset any error messages
+            const errorMessage = document.getElementById("errorMessage");
+            if (errorMessage) errorMessage.style.display = 'none';
+        }
+    </script>
+</body>
+</html>
