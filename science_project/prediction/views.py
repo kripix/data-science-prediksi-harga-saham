@@ -65,6 +65,8 @@ class PredictionView(View):
             y = df['close']
 
             # Hitung regresi
+            # Slope = koefisien
+            # Intercept = konstanta
             slope, intercept, r, *_ = stats.linregress(X, y)
             y_pred = slope * X + intercept
 
