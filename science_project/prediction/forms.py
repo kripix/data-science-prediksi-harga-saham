@@ -1,5 +1,6 @@
 from django import forms
 
+
 class UploadData(forms.Form):
     file = forms.FileField(
         label='Upload Dataset (CSV)',
